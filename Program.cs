@@ -10,7 +10,7 @@ var cmdArgs = Environment.GetCommandLineArgs();
 Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
     .WithParsed<CommandLineOptions>(o =>
     {
-        if (o.Repo != null)
+        if (o.Repo == null)
         {
             Console.WriteLine($"Verbose output enabled. Current Arguments: -v {o.Since}");
             Console.WriteLine("Quick Start Example! App is in Verbose mode!");
@@ -19,6 +19,7 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
         {
             Console.WriteLine($"Current Arguments: -v {o.Since}");
             Console.WriteLine("Quick Start Example!");
+            Utils.ChDir(o.Repo);
         }
         string output = Utils.AllLogs(o.Since, o.Author);
         Console.WriteLine(output);
@@ -35,10 +36,11 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
             Console.WriteLine(c.Headers["Author"]);
             Console.WriteLine(c.Headers["Date"]);
             Console.WriteLine(c.Message);
-            // check for regex #{number} and JIRA-1
-            foreach (Match match in Regex.Matches(c.Message, @"-\d+",
+            // check for regex #{number} and JIRA-1 test abc-2
+            // ([\S]+) matches words and -\d+ matches -1
+            foreach (Match match in Regex.Matches(c.Message, @"([\S]+)-\d+",
                                                RegexOptions.None,
-                                               TimeSpan.FromSeconds(1)))
+                                               TimeSpan.FromSeconds(2)))
             {
                 Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
                 entries.Add(match.Value);
@@ -54,6 +56,12 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
             }
         }
 
+        // print all entries
+        foreach (var e in entries)
+        {
+            Console.WriteLine(e);
+        }
+
     });
 
 
@@ -65,7 +73,7 @@ public class CommandLineOptions
     [Option('a', "author", Required = false, Default = "David Li", HelpText = "Author to search git logs for")]
     public string Author { get; set; }
 
-    [Option('r', "repo", Required = false, HelpText = "local path to repository to parse")]
+    [Option('d', "dir", Required = false, HelpText = "local path to repository to parse")]
     public string Repo { get; set; }
 
 }
@@ -120,7 +128,7 @@ public class Utils
 
     public static string AllLogs(string since, string author)
     {
-        var args_string = string.Format("log --all --since={0} --before=0am --author=\"{1}\"", since, author);
+        var args_string = string.Format("log --all --since=\"{0}\" --before=0am --author=\"{1}\"", since, author);
         Console.WriteLine(args_string);
         var output = RunProcess(args_string);
         return output;
@@ -136,7 +144,9 @@ public class Utils
             do
             {
                 var line = strReader.ReadLine();
-
+                if (line == null) {
+                    continue;
+                } 
                 if (line.StartsWith("commit "))
                 {
                     if (commit != null)
@@ -156,7 +166,6 @@ public class Utils
 
                 if (string.IsNullOrEmpty(line) && commit.Message != null)
                 {
-                    Console.WriteLine("Start processing message");
                     // commit message divider
                     processingMessage = !processingMessage;
                 }
@@ -182,6 +191,19 @@ public class Utils
         return commits;
     }
 
+    public static void ChDir(string path)
+    {
+        try
+        {
+            //Set the current directory.
+            Directory.SetCurrentDirectory(path);
+        }
+        catch (DirectoryNotFoundException e)
+        {
+            Console.WriteLine("The specified directory does not exist. {0}", e);
+        }
+    }
+
     static bool StartsWithHeader(string line)
     {
         if (line.Length > 0 && char.IsLetter(line[0]))
@@ -194,69 +216,3 @@ public class Utils
 
 
 }
-
-
-
-// void Print()
-// {
-//     Console.WriteLine("commit " + Sha);
-//     foreach (var key in Headers.Keys)
-//     {
-//         Console.WriteLine(key + ":" + Headers[key]);
-//     }
-//     Console.WriteLine();
-//     Console.WriteLine(Message);
-//     Console.WriteLine();
-//     foreach (var file in Files)
-//     {
-//         Console.WriteLine(file.Status + "\t" + file.File);
-//     }
-// }
-// using (var strReader = new StringReader(output))
-// {
-//     do
-//     {
-//         var line = strReader.ReadLine();
-
-//         if (line.StartsWith("commit "))
-//         {
-//             if (commit != null)
-//                 commits.Add(commit);
-//             commit = new GitCommit();
-//             commit.Sha = line.Split(' ')[1];
-//         }
-
-//         if (StartsWithHeader(line))
-//         {
-//             var header = line.Split(':')[0];
-//             var val = string.Join(":", line.Split(':').Skip(1)).Trim();
-
-//             // headers
-//             commit.Headers.Add(header, val);
-//         }
-
-//         if (string.IsNullOrEmpty(line))
-//         {
-//             // commit message divider
-//             processingMessage = !processingMessage;
-//         }
-
-//         if (line.Length > 0 && line[0] == '\t')
-//         {
-//             // commit message.
-//             commit.Message += line;
-//         }
-
-//         if (line.Length > 1 && Char.IsLetter(line[0]) && line[1] == '\t')
-//         {
-//             var status = line.Split('\t')[0];
-//             var file = line.Split('\t')[1];
-//             commit.Files.Add(new GitFileStatus() { Status = status, File = file });
-//         }
-//     }
-//     while (strReader.Peek() != -1);
-// }
-// if (commit != null)
-//     commits.Add(commit);
-
-// return commits;
