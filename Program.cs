@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using CommandLine;
 // inspired by http://chrisparnin.github.io/articles/2013/09/parse-git-log-output-in-c/
 // See https://aka.ms/new-console-template for more information
@@ -24,22 +25,48 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
 
         var commits = Utils.ParseResults(output);
         Console.WriteLine(commits);
-        
+
+
+        // pull entries with #{number} and JIRA-1 project regex
+        var entries = new List<String>();
         // iterate across all commmits and print out the commit message
+        foreach (var c in commits)
+        {
+            Console.WriteLine(c.Headers["Author"]);
+            Console.WriteLine(c.Headers["Date"]);
+            Console.WriteLine(c.Message);
+            // check for regex #{number} and JIRA-1
+            foreach (Match match in Regex.Matches(c.Message, @"-\d+",
+                                               RegexOptions.None,
+                                               TimeSpan.FromSeconds(1)))
+            {
+                Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
+                entries.Add(match.Value);
+            }
+
+            // check for regex #{number}
+            foreach (Match match in Regex.Matches(c.Message, @"#\d+",
+                                               RegexOptions.None,
+                                               TimeSpan.FromSeconds(1)))
+            {
+                Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
+                entries.Add(match.Value);
+            }
+        }
 
     });
 
 
 public class CommandLineOptions
 {
-    [Option('s', "since", Required = false, Default ="yesterday", HelpText = "Since Time")]
+    [Option('s', "since", Required = false, Default = "yesterday", HelpText = "Since Time")]
     public string Since { get; set; }
 
-    [Option('a', "author", Required = false, Default="David Li", HelpText ="Author to search git logs for")]
+    [Option('a', "author", Required = false, Default = "David Li", HelpText = "Author to search git logs for")]
     public string Author { get; set; }
 
     [Option('r', "repo", Required = false, HelpText = "local path to repository to parse")]
-    public string Repo {get; set;}
+    public string Repo { get; set; }
 
 }
 
@@ -99,7 +126,7 @@ public class Utils
         return output;
     }
 
-    public static List<GitCommit> ParseResults(string output) 
+    public static List<GitCommit> ParseResults(string output)
     {
         GitCommit commit = null;
         var commits = new List<GitCommit>();
@@ -110,7 +137,7 @@ public class Utils
             {
                 var line = strReader.ReadLine();
 
-                if( line.StartsWith("commit ") )
+                if (line.StartsWith("commit "))
                 {
                     if (commit != null)
                         commits.Add(commit);
@@ -118,33 +145,34 @@ public class Utils
                     commit.Sha = line.Split(' ')[1];
                 }
 
-                if ( StartsWithHeader(line) )
+                if (StartsWithHeader(line))
                 {
                     var header = line.Split(':')[0];
-                    var val = string.Join(":",line.Split(':').Skip(1)).Trim();
+                    var val = string.Join(":", line.Split(':').Skip(1)).Trim();
 
                     // headers
                     commit.Headers.Add(header, val);
                 }
 
-                if (string.IsNullOrEmpty(line) )
+                if (string.IsNullOrEmpty(line) && commit.Message != null)
                 {
+                    Console.WriteLine("Start processing message");
                     // commit message divider
                     processingMessage = !processingMessage;
                 }
 
-                if (line.Length > 0 && line[0] == '\t')
-                { 
+                if (line.Length > 0 && processingMessage)
+                {
                     // commit message.
                     commit.Message += line;
                 }
-
-                if (line.Length > 1 && Char.IsLetter(line[0]) && line[1] == '\t')
-                {
-                    var status = line.Split('\t')[0];
-                    var file = line.Split('\t')[1];
-                    commit.Files.Add(new GitFileStatus() { Status = status, File = file } );
-                }
+                // if (line.Length > 1 && Char.IsLetter(line[0]) && line[1] == '\t')
+                // {
+                //     Console.WriteLine(line);
+                //     var status = line.Split('\t')[0];
+                //     var file = line.Split('\t')[1];
+                //     commit.Files.Add(new GitFileStatus() { Status = status, File = file } );
+                // }
             }
             while (strReader.Peek() != -1);
         }
@@ -153,7 +181,7 @@ public class Utils
 
         return commits;
     }
-    
+
     static bool StartsWithHeader(string line)
     {
         if (line.Length > 0 && char.IsLetter(line[0]))
