@@ -1,0 +1,67 @@
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push request event for the master branch
+  push:
+  pull_request:
+  release:
+    types: 
+      - published
+
+jobs:
+  build:
+    # Our previously created self-hosted runner
+    runs-on: ubuntu-latest
+
+
+    # A sequence of tasks that will execute as part of the job
+    steps:
+      # Checks out repository so our job can access it
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core SDK 6.0
+        uses: actions/setup-dotnet@latest
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      # We will output publish files to the folder we previously created
+      - name: Publish
+        run: dotnet publish -c Release -r win-x64 -p:PublishReadyToRun=true
+
+      # We will output publish files to the folder we previously created
+      # github actions artifacts, .exe file
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.event.release.tag_name }}
+          path: ${{ github.workspace }}/bin/Release/net6.0/win-x64/publish/git_log_parser.exe
+
+ deploy:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@latest
+        with:
+          dotnet-version: 6.0.100
+      - name: Create Release NuGet package
+        run: |
+          arrTag=(${GITHUB_REF//\// })
+          VERSION="${arrTag[2]}"
+          echo Version: $VERSION
+          VERSION="${VERSION//v}"
+          echo Clean Version: $VERSION
+      - name: Push to GitHub Feed
+        run: |
+          for f in ${{ github.workspace }}/bin/Release/net6.0/win-x64/publish/git_log_parser.exe
+          do
+            curl -vX PUT -u "$GITHUB_USER:$GITHUB_TOKEN" -F package=@$f $GITHUB_FEED
+          done
