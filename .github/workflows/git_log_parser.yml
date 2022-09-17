@@ -42,7 +42,7 @@ jobs:
           name: ${{ github.event.release.tag_name }}
           path: ${{ github.workspace }}/bin/Release/net6.0/win-x64/publish/git_log_parser.exe
 
- deploy:
+  deploy:
     needs: build
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
