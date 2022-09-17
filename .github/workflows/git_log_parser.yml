@@ -20,7 +20,7 @@ jobs:
       # Checks out repository so our job can access it
       - uses: actions/checkout@v2
       - name: Setup .NET Core SDK 6.0
-        uses: actions/setup-dotnet@latest
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: 6.0.x
 
@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@latest
+        uses: actions/setup-dotnet@v2
         with:
           dotnet-version: 6.0.100
       - name: Create Release NuGet package
