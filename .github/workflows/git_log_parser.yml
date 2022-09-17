@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: git_log_parser
-          path: ${{ github.workspace }}/bin/Release/net6.0/win-x64/publish/git_log_parser.exe
+          path: ${{ github.workspace }}/bin/Release/net6.0/win-x64/publish
 
   deploy:
     needs: build

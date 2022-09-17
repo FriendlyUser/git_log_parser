@@ -31,10 +31,11 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
         // pull entries with #{number} and JIRA-1 project regex
         var entries = new List<String>();
         // iterate across all commmits and print out the commit message
+        Console.WriteLine("Messages: ");
         foreach (var c in commits)
         {
-            Console.WriteLine(c.Headers["Author"]);
-            Console.WriteLine(c.Headers["Date"]);
+            // Console.WriteLine(c.Headers["Author"]);
+            // Console.WriteLine(c.Headers["Date"]);
             Console.WriteLine(c.Message);
             // check for regex #{number} and JIRA-1 test abc-2
             // ([\S]+) matches words and -\d+ matches -1
@@ -42,7 +43,7 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
                                                RegexOptions.None,
                                                TimeSpan.FromSeconds(2)))
             {
-                Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
+                // Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
                 entries.Add(match.Value);
             }
 
@@ -51,11 +52,13 @@ Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
                                                RegexOptions.None,
                                                TimeSpan.FromSeconds(1)))
             {
-                Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
+                // Console.WriteLine("Found '{0}' at position {1}", match.Value, match.Index);
                 entries.Add(match.Value);
             }
         }
+         Console.WriteLine("----------------");
 
+        Console.WriteLine("Issues found: ");
         // print all entries
         foreach (var e in entries)
         {
