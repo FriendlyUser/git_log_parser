@@ -32,7 +32,7 @@ jobs:
 
       # We will output publish files to the folder we previously created
       - name: Publish
-        run: dotnet publish -c Release -r win-x64 -p:PublishReadyToRun=true
+        run: dotnet publish -c Release -r win-x64 -p:PublishReadyToRun=true --self-contained false
 
       # We will output publish files to the folder we previously created
       # github actions artifacts, .exe file
