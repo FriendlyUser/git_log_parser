@@ -32,3 +32,5 @@
 *.app
 obj
 bin
+get_logs.sh
+conscrap

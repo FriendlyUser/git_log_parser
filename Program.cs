@@ -1,18 +1,47 @@
 ﻿using System;
 using System.Diagnostics;
+using CommandLine;
+// inspired by http://chrisparnin.github.io/articles/2013/09/parse-git-log-output-in-c/
 // See https://aka.ms/new-console-template for more information
 Console.WriteLine("Hello, World!");
 GitCommit commit = null;
-// var args = Environment.GetCommandLineArgs()
-//  Parser.Default.ParseArguments<CommandLineOptions>(args)
-//        .WithParsed<CommandLineOptions>(o =>
-//        {
-//                 Console.WriteLine(o.Symbol);
-//                 Console.WriteLine(o.Date);
-//        });
-var commits = new List<GitCommit>();
-bool processingMessage = false;
+var cmdArgs = Environment.GetCommandLineArgs();
+Parser.Default.ParseArguments<CommandLineOptions>(cmdArgs)
+    .WithParsed<CommandLineOptions>(o =>
+    {
+        if (o.Repo != null)
+        {
+            Console.WriteLine($"Verbose output enabled. Current Arguments: -v {o.Since}");
+            Console.WriteLine("Quick Start Example! App is in Verbose mode!");
+        }
+        else
+        {
+            Console.WriteLine($"Current Arguments: -v {o.Since}");
+            Console.WriteLine("Quick Start Example!");
+        }
+        string output = Utils.AllLogs(o.Since, o.Author);
+        Console.WriteLine(output);
 
+        var commits = Utils.ParseResults(output);
+        Console.WriteLine(commits);
+        
+        // iterate across all commmits and print out the commit message
+
+    });
+
+
+public class CommandLineOptions
+{
+    [Option('s', "since", Required = false, Default ="yesterday", HelpText = "Since Time")]
+    public string Since { get; set; }
+
+    [Option('a', "author", Required = false, Default="David Li", HelpText ="Author to search git logs for")]
+    public string Author { get; set; }
+
+    [Option('r', "repo", Required = false, HelpText = "local path to repository to parse")]
+    public string Repo {get; set;}
+
+}
 
 
 public class GitCommit
@@ -39,7 +68,7 @@ public class GitFileStatus
 public class Utils
 {
 
-    static string RunProcess(string command)
+    public static string RunProcess(string command)
     {
         // Start the child process.
         Process p = new Process();
@@ -61,6 +90,69 @@ public class Utils
         var output = RunProcess(string.Format(" --git-dir={0}/.git --work-tree={1} log --name-status", path.Replace("\\", "/"), path.Replace("\\", "/")));
         return output;
     }
+
+    public static string AllLogs(string since, string author)
+    {
+        var args_string = string.Format("log --all --since={0} --before=0am --author=\"{1}\"", since, author);
+        Console.WriteLine(args_string);
+        var output = RunProcess(args_string);
+        return output;
+    }
+
+    public static List<GitCommit> ParseResults(string output) 
+    {
+        GitCommit commit = null;
+        var commits = new List<GitCommit>();
+        bool processingMessage = false;
+        using (var strReader = new StringReader(output))
+        {
+            do
+            {
+                var line = strReader.ReadLine();
+
+                if( line.StartsWith("commit ") )
+                {
+                    if (commit != null)
+                        commits.Add(commit);
+                    commit = new GitCommit();
+                    commit.Sha = line.Split(' ')[1];
+                }
+
+                if ( StartsWithHeader(line) )
+                {
+                    var header = line.Split(':')[0];
+                    var val = string.Join(":",line.Split(':').Skip(1)).Trim();
+
+                    // headers
+                    commit.Headers.Add(header, val);
+                }
+
+                if (string.IsNullOrEmpty(line) )
+                {
+                    // commit message divider
+                    processingMessage = !processingMessage;
+                }
+
+                if (line.Length > 0 && line[0] == '\t')
+                { 
+                    // commit message.
+                    commit.Message += line;
+                }
+
+                if (line.Length > 1 && Char.IsLetter(line[0]) && line[1] == '\t')
+                {
+                    var status = line.Split('\t')[0];
+                    var file = line.Split('\t')[1];
+                    commit.Files.Add(new GitFileStatus() { Status = status, File = file } );
+                }
+            }
+            while (strReader.Peek() != -1);
+        }
+        if (commit != null)
+            commits.Add(commit);
+
+        return commits;
+    }
     
     static bool StartsWithHeader(string line)
     {
@@ -71,6 +163,8 @@ public class Utils
         }
         return false;
     }
+
+
 }
 
 
